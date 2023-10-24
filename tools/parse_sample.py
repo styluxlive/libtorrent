@@ -64,7 +64,7 @@ for line in f:
 
     output = '%s%-4d %s' % (' ' * (indentation / 2), samples, fun)
     if len(output) > 200:
-        output = output[0:200]
+        output = output[:200]
     print(output)
 
     if 'invariant_checker_impl' in fun:
@@ -83,15 +83,15 @@ for line in f:
         fold = indentation
     if 'operator new' in fun:
         fold = indentation
-    if 'malloc' == fun:
+    if fun == 'malloc':
         fold = indentation
-    if 'free' == fun:
+    if fun == 'free':
         fold = indentation
     if 'std::_Rb_tree' in fun:
         fold = indentation
     if 'pthread_cond_wait' in fun:
         fold = indentation
-    if 'mp_exptmod' == fun:
+    if fun == 'mp_exptmod':
         fold = indentation
     if '::check_invariant()' in fun:
         fold = indentation
@@ -103,59 +103,56 @@ for line in f:
         fold = indentation
     if 'libtorrent::sleep' in fun:
         fold = indentation
-    if 'puts' == fun:
+    if fun == 'puts':
         fold = indentation
     if 'boost::asio::basic_stream_socket' in fun:
         fold = indentation
-    if 'recvmsg' == fun:
+    if fun == 'recvmsg':
         fold = indentation
-    if 'sendmsg' == fun:
+    if fun == 'sendmsg':
         fold = indentation
-    if 'semaphore_signal_trap' == fun:
+    if fun == 'semaphore_signal_trap':
         fold = indentation
     if 'boost::detail::atomic_count::operator' in fun:
         fold = indentation
-    if 'pthread_mutex_lock' == fun:
+    if fun == 'pthread_mutex_lock':
         fold = indentation
-    if 'pthread_mutex_unlock' == fun:
+    if fun == 'pthread_mutex_unlock':
         fold = indentation
-    if '>::~vector()' == fun:
+    if fun == '>::~vector()':
         fold = indentation
-    if 'szone_free_definite_size' == fun:
+    if fun == 'szone_free_definite_size':
         fold = indentation
-    if 'snprintf' == fun:
+    if fun == 'snprintf':
         fold = indentation
-    if 'usleep' == fun:
+    if fun == 'usleep':
         fold = indentation
-    if 'pthread_mutex_lock' == fun:
+    if fun == 'pthread_mutex_lock':
         fold = indentation
-    if 'pthread_mutex_unlock' == fun:
+    if fun == 'pthread_mutex_unlock':
         fold = indentation
     if 'std::string::append' in fun:
         fold = indentation
-    if 'getipnodebyname' == fun:
+    if fun == 'getipnodebyname':
         fold = indentation
     if '__gnu_debug::_Safe_iterator<std::' in fun:
         fold = indentation
-    if 'fflush' == fun:
+    if fun == 'fflush':
         fold = indentation
-    if 'vfprintf' == fun:
+    if fun == 'vfprintf':
         fold = indentation
-    if 'fprintf' == fun:
+    if fun == 'fprintf':
         fold = indentation
-    if 'BN_mod_exp' == fun:
+    if fun == 'BN_mod_exp':
         fold = indentation
-    if 'BN_CTX_free' == fun:
+    if fun == 'BN_CTX_free':
         fold = indentation
-    if 'cerror' == fun:
+    if fun == 'cerror':
         fold = indentation
-    if '0xffffffff' == fun:
+    if fun == '0xffffffff':
         fold = indentation
 
-list = []
-for k in fun_samples:
-    list.append((fun_samples[k], k))
-
+list = [(v, k) for k, v in fun_samples.items()]
 list = sorted(list, reverse=True)
 
 for i in list:

@@ -56,16 +56,13 @@ try:
     os.mkdir(output_dir)
 except Exception:
     pass
-data_out = open(os.path.join(output_dir, 'counters.dat'), 'w+')
-
-idx = 0
-for line in stat:
-    if 'session stats (' not in line:
-        continue
-    data_out.write(("%d\t" % idx) + line.split(' values): ')[1].strip().replace(', ', '\t') + '\n')
-    idx += 1
-
-data_out.close()
+with open(os.path.join(output_dir, 'counters.dat'), 'w+') as data_out:
+    idx = 0
+    for line in stat:
+        if 'session stats (' not in line:
+            continue
+        data_out.write(("%d\t" % idx) + line.split(' values): ')[1].strip().replace(', ', '\t') + '\n')
+        idx += 1
 
 line_graph = 0
 histogram = 1
@@ -102,9 +99,9 @@ line_colors = list(graph_colors)
 line_colors.reverse()
 
 gradient16_colors = []
+pi = 3.1415927
 for i in range(0, 16):
     f = i / 16.
-    pi = 3.1415927
     r = max(int(255 * (math.sin(f * pi) + 0.2)), 0)
     g = max(int(255 * (math.sin((f - 0.5) * pi) + 0.2)), 0)
     b = max(int(255 * (math.sin((f + 0.5) * pi) + 0.2)), 0)
@@ -112,9 +109,9 @@ for i in range(0, 16):
     gradient16_colors.append(c)
 
 gradient18_colors = []
+pi = 3.1415927
 for i in range(0, 18):
     f = i / 18.
-    pi = 3.1415927
     r = max(int(255 * (math.sin(f * pi) + 0.2)), 0)
     g = max(int(255 * (math.sin((f - 0.5) * pi) + 0.2)), 0)
     b = max(int(255 * (math.sin((f + 0.5) * pi) + 0.2)), 0)
@@ -130,11 +127,11 @@ for i in range(0, 6):
 
 def plot_fun(script):
     try:
-        ret = os.system('gnuplot "%s" 2>/dev/null' % script)
+        ret = os.system(f'gnuplot "{script}" 2>/dev/null')
     except Exception as e:
         print('please install gnuplot: sudo apt install gnuplot')
         raise e
-    if ret != 0 and ret != 256:
+    if ret not in [0, 256]:
         print('gnuplot failed: %d\n' % ret)
         raise Exception("abort")
 
@@ -164,159 +161,164 @@ def gen_report(name, unit, lines, short_unit, generation, log_file, options):
         pass
 
     script = os.path.join(output_dir, '%s_%04d.gnuplot' % (name, generation))
-    out = open(script, 'w')
-    print("set term png size 1200,700", file=out)
-    print('set output "%s"' % filename, file=out)
-    if 'allow-negative' not in options:
-        print('set yrange [0:*]', file=out)
-    print("set tics nomirror", file=out)
-    print("set key box", file=out)
-    print("set key left top", file=out)
+    with open(script, 'w') as out:
+        print("set term png size 1200,700", file=out)
+        print(f'set output "{filename}"', file=out)
+        if 'allow-negative' not in options:
+            print('set yrange [0:*]', file=out)
+        print("set tics nomirror", file=out)
+        print("set key box", file=out)
+        print("set key left top", file=out)
 
-    colors = graph_colors
-    if options['type'] == line_graph:
-        colors = line_colors
+        colors = graph_colors
+        if options['type'] == line_graph:
+            colors = line_colors
 
-    try:
-        if options['colors'] == 'gradient16':
-            colors = gradient16_colors
-        elif options['colors'] == 'gradient6':
-            colors = gradient6_colors
-        if options['colors'] == 'gradient18':
-            colors = gradient18_colors
-    except Exception:
-        pass
-
-    if options['type'] == histogram:
-        binwidth = options['binwidth']
-        numbins = int(options['numbins'])
-
-        print('binwidth=%f' % binwidth, file=out)
-        print('set boxwidth binwidth', file=out)
-        print('bin(x,width)=width*floor(x/width) + binwidth/2', file=out)
-        print('set xrange [0:%f]' % (binwidth * numbins), file=out)
-        print('set xlabel "%s"' % unit, file=out)
-        print('set ylabel "number"', file=out)
-
-        k = lines[0]
         try:
-            column = keys.index(k) + 2
+            if options['colors'] == 'gradient16':
+                colors = gradient16_colors
+            elif options['colors'] == 'gradient6':
+                colors = gradient6_colors
+            if options['colors'] == 'gradient18':
+                colors = gradient18_colors
         except Exception:
-            print('"%s" not found' % k)
-            return
-        print('plot "%s" using (bin($%d,binwidth)):(1.0) smooth freq with boxes' % (log_file, column), file=out)
-        print('', file=out)
-        print('', file=out)
-        print('', file=out)
+            pass
 
-    elif options['type'] == stacked:
-        print('set xrange [0:*]', file=out)
-        print('set ylabel "%s"' % unit, file=out)
-        print('set xlabel "time (s)"', file=out)
-        print('set format y "%%.1s%%c%s";' % short_unit, file=out)
-        print('set style fill solid 1.0 noborder', file=out)
-        print('plot', end=' ', file=out)
-        first = True
-        graph = ''
-        plot_expression = ''
-        color = 0
-        for k in lines:
-            try:
-                column = keys.index(k) + 2
-            except Exception:
-                print('"%s" not found' % k)
-                continue
-            if not first:
-                plot_expression = ', ' + plot_expression
-                graph += '+'
-            axis = 'x1y1'
-            graph += '$%d' % column
-            plot_expression = ' "%s" using 1:(%s) title "%s" axes %s with filledcurves x1 lc rgb "%s"' % (
-                log_file, graph, to_title(k), axis, colors[color % len(colors)]) + plot_expression
-            first = False
-            color += 1
-        print(plot_expression, file=out)
-    elif options['type'] == diff:
-        print('set xrange [0:*]', file=out)
-        print('set ylabel "%s"' % unit, file=out)
-        print('set xlabel "time (s)"', file=out)
-        print('set format y "%%.1s%%c%s";' % short_unit, file=out)
-        first = True
-        graph = ''
-        title = ''
-        for k in lines:
-            try:
-                column = keys.index(k) + 2
-            except Exception:
-                print('"%s" not found' % k)
-                continue
-            if not first:
-                graph += '-'
-                title += ' - '
-            graph += '$%d' % column
-            title += to_title(k)
-            first = False
-        print('plot "%s" using 1:(%s) title "%s" with step' % (log_file, graph, title), file=out)
-    else:
-        print('set xrange [0:*]', file=out)
-        print('set ylabel "%s"' % unit, file=out)
-        print('set xlabel "time (s)"', file=out)
-        print('set format y "%%.1s%%c%s";' % short_unit, file=out)
-        print('plot', end=' ', file=out)
-        first = True
-        color = 0
-        for k in lines:
-            try:
-                column = keys.index(k) + 2
-            except Exception:
-                print('"%s" not found' % k)
-                continue
-            if not first:
-                print(', ', end=' ', file=out)
-            axis = 'x1y1'
-            print(' "%s" using 1:%d title "%s" axes %s with steps lc rgb "%s"' %
-                  (log_file, column, to_title(k), axis, colors[color % len(colors)]), end=' ', file=out)
-            first = False
-            color += 1
-        print('', file=out)
+        if options['type'] == histogram:
+            binwidth = options['binwidth']
+            numbins = int(options['numbins'])
 
-    print('set term png size 150,100', file=out)
-    print('set output "%s"' % thumb, file=out)
-    print('set key off', file=out)
-    print('unset tics', file=out)
-    print('set format x ""', file=out)
-    print('set format y ""', file=out)
-    print('set xlabel ""', file=out)
-    print('set ylabel ""', file=out)
-    print('set y2label ""', file=out)
-    print('set rmargin 0', file=out)
-    print('set lmargin 0', file=out)
-    print('set tmargin 0', file=out)
-    print('set bmargin 0', file=out)
-    print("replot", file=out)
-    out.close()
+            print('binwidth=%f' % binwidth, file=out)
+            print('set boxwidth binwidth', file=out)
+            print('bin(x,width)=width*floor(x/width) + binwidth/2', file=out)
+            print('set xrange [0:%f]' % (binwidth * numbins), file=out)
+            print(f'set xlabel "{unit}"', file=out)
+            print('set ylabel "number"', file=out)
+
+            k = lines[0]
+            try:
+                column = keys.index(k) + 2
+            except Exception:
+                print(f'"{k}" not found')
+                return
+            print('plot "%s" using (bin($%d,binwidth)):(1.0) smooth freq with boxes' % (log_file, column), file=out)
+            print('', file=out)
+            print('', file=out)
+            print('', file=out)
+
+        elif options['type'] == stacked:
+            print('set xrange [0:*]', file=out)
+            print(f'set ylabel "{unit}"', file=out)
+            print('set xlabel "time (s)"', file=out)
+            print('set format y "%%.1s%%c%s";' % short_unit, file=out)
+            print('set style fill solid 1.0 noborder', file=out)
+            print('plot', end=' ', file=out)
+            first = True
+            graph = ''
+            plot_expression = ''
+            color = 0
+            for k in lines:
+                try:
+                    column = keys.index(k) + 2
+                except Exception:
+                    print(f'"{k}" not found')
+                    continue
+                if not first:
+                    plot_expression = f', {plot_expression}'
+                    graph += '+'
+                axis = 'x1y1'
+                graph += '$%d' % column
+                plot_expression = f' "{log_file}" using 1:({graph}) title "{to_title(k)}" axes {axis} with filledcurves x1 lc rgb "{colors[color % len(colors)]}"{plot_expression}'
+                first = False
+                color += 1
+            print(plot_expression, file=out)
+        elif options['type'] == diff:
+            print('set xrange [0:*]', file=out)
+            print(f'set ylabel "{unit}"', file=out)
+            print('set xlabel "time (s)"', file=out)
+            print('set format y "%%.1s%%c%s";' % short_unit, file=out)
+            first = True
+            graph = ''
+            title = ''
+            for k in lines:
+                try:
+                    column = keys.index(k) + 2
+                except Exception:
+                    print(f'"{k}" not found')
+                    continue
+                if not first:
+                    graph += '-'
+                    title += ' - '
+                graph += '$%d' % column
+                title += to_title(k)
+                first = False
+            print(
+                f'plot "{log_file}" using 1:({graph}) title "{title}" with step',
+                file=out,
+            )
+        else:
+            print('set xrange [0:*]', file=out)
+            print(f'set ylabel "{unit}"', file=out)
+            print('set xlabel "time (s)"', file=out)
+            print('set format y "%%.1s%%c%s";' % short_unit, file=out)
+            print('plot', end=' ', file=out)
+            first = True
+            color = 0
+            for k in lines:
+                try:
+                    column = keys.index(k) + 2
+                except Exception:
+                    print(f'"{k}" not found')
+                    continue
+                if not first:
+                    print(', ', end=' ', file=out)
+                axis = 'x1y1'
+                print(' "%s" using 1:%d title "%s" axes %s with steps lc rgb "%s"' %
+                      (log_file, column, to_title(k), axis, colors[color % len(colors)]), end=' ', file=out)
+                first = False
+                color += 1
+            print('', file=out)
+
+        print('set term png size 150,100', file=out)
+        print(f'set output "{thumb}"', file=out)
+        print('set key off', file=out)
+        print('unset tics', file=out)
+        print('set format x ""', file=out)
+        print('set format y ""', file=out)
+        print('set xlabel ""', file=out)
+        print('set ylabel ""', file=out)
+        print('set y2label ""', file=out)
+        print('set rmargin 0', file=out)
+        print('set lmargin 0', file=out)
+        print('set tmargin 0', file=out)
+        print('set bmargin 0', file=out)
+        print("replot", file=out)
     return script
 
 
 def gen_html(reports, generations):
-    file = open(os.path.join(output_dir, 'index.html'), 'w+')
-
-    css = '''img { margin: 0}
+    with open(os.path.join(output_dir, 'index.html'), 'w+') as file:
+        css = '''img { margin: 0}
 #head { display: block }
 #graphs { white-space:nowrap; }
 h1 { line-height: 1; display: inline }
 h2 { line-height: 1; display: inline; font-size: 1em; font-weight: normal};'''
 
-    print('<html><head><style type="text/css">%s</style></head><body>' % css, file=file)
+        print(
+            f'<html><head><style type="text/css">{css}</style></head><body>',
+            file=file,
+        )
 
-    for i in reports:
-        print('<div id="head"><h1>%s </h1><h2>%s</h2><div><div id="graphs">' % (i[0], i[3]), file=file)
-        for g in generations:
-            print('<a href="%s_%04d.png"><img src="%s_%04d_thumb.png"></a>' % (i[0], g, i[0], g), file=file)
-        print('</div>', file=file)
+        for i in reports:
+            print(
+                f'<div id="head"><h1>{i[0]} </h1><h2>{i[3]}</h2><div><div id="graphs">',
+                file=file,
+            )
+            for g in generations:
+                print('<a href="%s_%04d.png"><img src="%s_%04d_thumb.png"></a>' % (i[0], g, i[0], g), file=file)
+            print('</div>', file=file)
 
-    print('</body></html>', file=file)
-    file.close()
+        print('</body></html>', file=file)
 
 
 reports = [
@@ -631,7 +633,6 @@ reports = [
 
 print('generating graphs')
 g = 0
-generations = []
 scripts = []
 
 print('[%s] %04d\r[' % (' ' * len(reports), g), end='')
@@ -647,7 +648,7 @@ for i in reports:
     if script is not None:
         scripts.append(script)
 
-generations.append(g)
+generations = [g]
 g += 1
 
 # run gnuplot on all scripts, in parallel

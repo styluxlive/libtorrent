@@ -41,26 +41,19 @@ for f in ['zeroes.gz', 'corrupt.gz', 'invalid1.gz']:
 
 idna = ['....', 'xn--foo-.bar', 'foo.xn--bar-.com', 'Xn--foobar-', 'XN--foobar-', '..xnxn--foobar-']
 
-counter = 0
-for i in idna:
+for counter, i in enumerate(idna):
     open(os.path.join('corpus', 'idna', '%d' % counter), 'w+').write(i)
-    counter += 1
-
 urls = ['https://user:password@example.com:8080/path?query']
 
-counter = 0
-for i in urls:
+for counter, i in enumerate(urls):
     open(os.path.join('corpus', 'parse_url', '%d' % counter), 'w+').write(i)
-    counter += 1
-
-counter = 0
 tracker_fields = ['interval', 'min interval', 'tracker id', 'failure reason',
     'warning message', 'complete', 'incomplete', 'downloaded', 'downloaders', 'external ip']
 tracker_values = ['i-1e', 'i0e', 'i1800e', '6:foobar', 'de', '0:', 'le']
 peer_fields = ['peer id', 'ip', 'port']
 peer_values = ['i-1e', 'i0e', 'i1800e', '6:foobar', 'de', '0:', 'le', '9:127.0.0.1']
 
-for i in range(1000):
+for counter, _ in enumerate(range(1000)):
     tracker_msg = 'd'
     for f in tracker_fields:
         tracker_msg += '%d:' % len(f) + f
@@ -75,7 +68,7 @@ for i in range(1000):
     tracker_msg += '5:peers'
     if random.getrandbits(1) == 0:
         tracker_msg += 'l'
-        for k in range(10):
+        for _ in range(10):
             tracker_msg += 'd'
             for f in peer_fields:
                 tracker_msg += '%d:' % len(f) + f
@@ -84,18 +77,16 @@ for i in range(1000):
         tracker_msg += 'e'
     else:
         tracker_msg += '60:'
-        for k in range(6*10):
+        for _ in range(6*10):
             tracker_msg += chr(random.getrandbits(8))
 
     tracker_msg += '6:peers6'
     tracker_msg += '180:'
-    for k in range(18*10):
+    for _ in range(18*10):
         tracker_msg += chr(random.getrandbits(8))
 
     tracker_msg += 'e'
     open(os.path.join('corpus', 'http_tracker', '%d' % counter), 'w+').write(tracker_msg)
-    counter += 1
-
 # generate peer protocol messages
 messages = []
 
@@ -202,13 +193,12 @@ for i in range(256):
 
 mixes = []
 
-for i in range(200):
+for _ in range(200):
     random.shuffle(messages)
     mixes.append(b''.join(messages[1:20]))
 
 messages += mixes
 
 for m in messages:
-    f = open('corpus/peer_conn/%s' % hashlib.sha1(m).hexdigest(), 'wb+')
-    f.write(add_reserved(m))
-    f.close()
+    with open(f'corpus/peer_conn/{hashlib.sha1(m).hexdigest()}', 'wb+') as f:
+        f.write(add_reserved(m))

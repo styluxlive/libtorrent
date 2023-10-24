@@ -8,9 +8,7 @@ from datetime import datetime
 
 def pretty_years(s):
 
-    li = list(s)
-    li.sort()
-
+    li = sorted(s)
     start = None
     prev = None
     r = []
@@ -44,8 +42,7 @@ def pretty_years(s):
 
 def order_by_year(a):
 
-    la = list(a[2])
-    la.sort()
+    la = sorted(a[2])
     # sort by year first, then by author
     return (la[0], a[0])
 
@@ -61,15 +58,12 @@ author_map = {
 
 
 def map_author(a):
-    if a in author_map:
-        return author_map[a]
-    else:
-        return a
+    return author_map[a] if a in author_map else a
 
 
 def get_authors(f):
 
-    print("File: %s" % f)
+    print(f"File: {f}")
 
     commits = []
     data = {}
@@ -124,7 +118,7 @@ def get_authors(f):
     copyright = list(by_author.values())
     copyright.sort(key=order_by_year)
 
-    ret = ''
-    for name, mail, years in copyright:
-        ret += "Copyright (c) %s, %s\n" % (pretty_years(years), name)
-    return ret
+    return ''.join(
+        "Copyright (c) %s, %s\n" % (pretty_years(years), name)
+        for name, mail, years in copyright
+    )

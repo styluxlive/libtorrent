@@ -51,11 +51,10 @@ if fs.num_files() == 0:
 t = libtorrent.create_torrent(fs, 0, 4 * 1024 * 1024)
 
 t.add_tracker(sys.argv[2])
-t.set_creator('libtorrent %s' % libtorrent.__version__)
+t.set_creator(f'libtorrent {libtorrent.__version__}')
 
 libtorrent.set_piece_hashes(t, parent_input, lambda x: sys.stdout.write('.'))
 sys.stdout.write('\n')
 
-f = open('out.torrent', 'wb+')
-f.write(libtorrent.bencode(t.generate()))
-f.close()
+with open('out.torrent', 'wb+') as f:
+    f.write(libtorrent.bencode(t.generate()))

@@ -163,9 +163,7 @@ class test_torrent_handle(unittest.TestCase):
 
     def test_torrent_handle_in_set(self):
         self.setup()
-        torrents = set()
-        torrents.add(self.h)
-
+        torrents = {self.h}
         # get another instance of a torrent_handle that represents the same
         # torrent. Make sure that when we add it to a set, it just replaces the
         # existing object
@@ -178,9 +176,7 @@ class test_torrent_handle(unittest.TestCase):
 
     def test_torrent_handle_in_dict(self):
         self.setup()
-        torrents = {}
-        torrents[self.h] = 'foo'
-
+        torrents = {self.h: 'foo'}
         # get another instance of a torrent_handle that represents the same
         # torrent. Make sure that when we add it to a dict, it just replaces the
         # existing object
@@ -246,7 +242,7 @@ class test_torrent_handle(unittest.TestCase):
         self.setup()
         st = self.h.status()
         for attr in dir(st):
-            print('%s: %s' % (attr, getattr(st, attr)))
+            print(f'{attr}: {getattr(st, attr)}')
         # last upload and download times are at session start time
         self.assertEqual(st.last_upload, None)
         self.assertEqual(st.last_download, None)
@@ -292,11 +288,11 @@ class test_torrent_handle(unittest.TestCase):
         ses = lt.session(settings)
         h = ses.add_torrent(tp)
         for attr in dir(tp):
-            print('%s: %s' % (attr, getattr(tp, attr)))
+            print(f'{attr}: {getattr(tp, attr)}')
 
         h.connect_peer(('3.3.3.3', 3))
 
-        for i in range(0, 10):
+        for _ in range(0, 10):
             alerts = ses.pop_alerts()
             for a in alerts:
                 print(a.message())
@@ -358,13 +354,19 @@ class TestAddPiece(unittest.TestCase):
         self.atp.ti = self.ti
         self.atp.save_path = self.dir.name
         self.handle = self.session.add_torrent(self.atp)
-        self.wait_for(lambda: self.handle.status().state != lt.torrent_status.checking_files
-                      and self.handle.status().state != lt.torrent_status.checking_resume_data, msg="checking")
+        self.wait_for(
+            lambda: self.handle.status().state
+            not in [
+                lt.torrent_status.checking_files,
+                lt.torrent_status.checking_resume_data,
+            ],
+            msg="checking",
+        )
 
     def wait_for(self, condition, msg="condition", timeout=5):
         deadline = time.time() + timeout
         while not condition():
-            self.assertLess(time.time(), deadline, msg="%s timed out" % msg)
+            self.assertLess(time.time(), deadline, msg=f"{msg} timed out")
             time.sleep(0.1)
 
     def wait_until_torrent_finished(self):
@@ -627,7 +629,7 @@ class test_alerts(unittest.TestCase):
         ses.async_add_torrent(
             {"ti": lt.torrent_info("base.torrent"), "save_path": "."})
         time.sleep(1)
-        for i in range(0, 10):
+        for _ in range(0, 10):
             alerts = ses.pop_alerts()
             for a in alerts:
                 print(a.message())
@@ -956,7 +958,7 @@ class test_session(unittest.TestCase):
         s.post_session_stats()
         alerts = []
         # first the stats headers log line. but not if logging is disabled
-        while len(alerts) == 0:
+        while not alerts:
             s.wait_for_alert(1000)
             alerts = s.pop_alerts()
 
@@ -981,7 +983,7 @@ class test_session(unittest.TestCase):
         s.post_dht_stats()
         alerts = []
         cnt = 0
-        while len(alerts) == 0:
+        while not alerts:
             s.wait_for_alert(1000)
             alerts = s.pop_alerts()
             cnt += 1
@@ -1033,10 +1035,9 @@ class test_example_client(unittest.TestCase):
             # TODO: fix windows includes of client.py
             return
         my_stdin = sys.stdin
-        if os.name != 'nt':
-            master_fd, slave_fd = pty.openpty()
-            # slave_fd fix multiple stdin assignment at termios.tcgetattr
-            my_stdin = slave_fd
+        master_fd, slave_fd = pty.openpty()
+        # slave_fd fix multiple stdin assignment at termios.tcgetattr
+        my_stdin = slave_fd
 
         process = sub.Popen(
             [sys.executable, "client.py", "url_seed_multi.torrent"],
@@ -1054,10 +1055,21 @@ class test_example_client(unittest.TestCase):
             # in case of error return: output stdout if nothing was on stderr
             if returncode != 0:
                 print("stdout:\n" + process.stdout.read().decode("utf-8"))
-            self.assertEqual(returncode, 0, "returncode: " + str(returncode) + "\n"
-                             + "stderr: empty\n"
-                             + "some configuration does not output errors like missing module members,"
-                             + "try to call it manually to get the error message\n")
+            self.assertEqual(
+                returncode,
+                0,
+                (
+                    (
+                        (
+                            f"returncode: {str(returncode)}"
+                            + "\n"
+                            + "stderr: empty\n"
+                        )
+                        + "some configuration does not output errors like missing module members,"
+                    )
+                    + "try to call it manually to get the error message\n"
+                ),
+            )
 
     def test_execute_simple_client(self):
         process = sub.Popen(
@@ -1076,10 +1088,21 @@ class test_example_client(unittest.TestCase):
             # in case of error return: output stdout if nothing was on stderr
             if returncode != 0:
                 print("stdout:\n" + process.stdout.read().decode("utf-8"))
-            self.assertEqual(returncode, 0, "returncode: " + str(returncode) + "\n"
-                             + "stderr: empty\n"
-                             + "some configuration does not output errors like missing module members,"
-                             + "try to call it manually to get the error message\n")
+            self.assertEqual(
+                returncode,
+                0,
+                (
+                    (
+                        (
+                            f"returncode: {str(returncode)}"
+                            + "\n"
+                            + "stderr: empty\n"
+                        )
+                        + "some configuration does not output errors like missing module members,"
+                    )
+                    + "try to call it manually to get the error message\n"
+                ),
+            )
 
     def test_execute_make_torrent(self):
         process = sub.Popen(
@@ -1092,10 +1115,17 @@ class test_example_client(unittest.TestCase):
         # in case of error return: output stdout if nothing was on stderr
         if returncode != 0:
             print("stdout:\n" + process.stdout.read().decode("utf-8"))
-        self.assertEqual(returncode, 0, "returncode: " + str(returncode) + "\n"
-                         + "stderr: empty\n"
-                         + "some configuration does not output errors like missing module members,"
-                         + "try to call it manually to get the error message\n")
+        self.assertEqual(
+            returncode,
+            0,
+            (
+                (
+                    (f"returncode: {str(returncode)}" + "\n" + "stderr: empty\n")
+                    + "some configuration does not output errors like missing module members,"
+                )
+                + "try to call it manually to get the error message\n"
+            ),
+        )
 
     def test_default_settings(self):
 

@@ -49,7 +49,7 @@ def main():
 
 
 def run_test(name, client_arg, save_dir: str):
-    output_dir = 'logs_checking_%s' % name
+    output_dir = f'logs_checking_{name}'
 
     timing_path = os.path.join(output_dir, 'timing.txt')
     if os.path.exists(timing_path):
@@ -68,29 +68,27 @@ def run_test(name, client_arg, save_dir: str):
         '--enable_dht=0 --enable_lsd=0 --enable_upnp=0 --enable_natpmp=0 '
         f'-1 {client_arg} -s {save_dir} -f {output_dir}/events.log --alert_mask=all')
 
-    client_out = open('%s/client.out' % output_dir, 'w+')
-    print('client_cmd: "{cmd}"'.format(cmd=client_cmd))
-    c = subprocess.Popen(client_cmd.split(' '), stdout=client_out, stderr=client_out, stdin=subprocess.PIPE)
+    with open(f'{output_dir}/client.out', 'w+') as client_out:
+        print('client_cmd: "{cmd}"'.format(cmd=client_cmd))
+        c = subprocess.Popen(client_cmd.split(' '), stdout=client_out, stderr=client_out, stdin=subprocess.PIPE)
 
-    start = time.monotonic()
-    if platform.system() == "Linux":
-        out = {}
-        while c.returncode is None:
-            capture_sample(c.pid, start, out)
-            time.sleep(0.1)
-            c.poll()
+        start = time.monotonic()
+        if platform.system() == "Linux":
+            out = {}
+            while c.returncode is None:
+                capture_sample(c.pid, start, out)
+                time.sleep(0.1)
+                c.poll()
 
-        stats_filename = f"{output_dir}/memory_stats.log"
-        keys = print_output_to_file(out, stats_filename)
-        plot_output(stats_filename, keys)
-    else:
-        c.wait()
-
-    client_out.close()
+            stats_filename = f"{output_dir}/memory_stats.log"
+            keys = print_output_to_file(out, stats_filename)
+            plot_output(stats_filename, keys)
+        else:
+            c.wait()
 
     start_time = 0
     end_time = 0
-    for l in open('%s/events.log' % output_dir, 'r'):
+    for l in open(f'{output_dir}/events.log', 'r'):
         if 'checking_benchmark: start_checking, m_checking_piece: ' in l \
                 and start_time == 0:
             start_time = int(l.split(' ')[0][1:-1])
@@ -99,7 +97,7 @@ def run_test(name, client_arg, save_dir: str):
             end_time = int(l.split(' ')[0][1:-1])
 
     print('%s: %d' % (name, end_time - start_time))
-    with open('%s/timing.txt' % output_dir, 'w+') as f:
+    with open(f'{output_dir}/timing.txt', 'w+') as f:
         f.write('%s: %d\n' % (name, end_time - start_time))
 
 

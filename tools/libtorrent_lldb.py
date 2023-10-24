@@ -65,12 +65,12 @@ def print_endpoint(valobj, internal_dict):
         a = union.GetChildMemberWithName("v4").GetChildMemberWithName("sin_addr").GetData().uint8s
         addr = ".".join([f"{b}" for b in a ])
         p = swap16(union.GetChildMemberWithName("v4").GetChildMemberWithName("sin_port").GetValueAsUnsigned())
-        return "{}:{}".format(addr, p)
+        return f"{addr}:{p}"
     else:
         a = union.GetChildMemberWithName("v6").GetChildMemberWithName("sin6_addr").GetData().uint8s
         p = swap16(union.GetChildMemberWithName("v6").GetChildMemberWithName("sin6_port").GetValueAsUnsigned())
         addr = ":".join(x+y for x, y in pairs(["{:02x}".format(b) for b in a]))
-        return "[{}]:{}".format(addr, p)
+        return f"[{addr}]:{p}"
 
 def print_bitfield(valobj, internal_dict):
 
@@ -79,7 +79,7 @@ def print_bitfield(valobj, internal_dict):
 
     array = valobj.GetChildMemberWithName("m_buf").GetChildMemberWithName("__ptr_").GetChildMemberWithName("__value_")
     size = array.Dereference().GetValueAsUnsigned()
-    ret = "size: {} bits | ".format(size)
+    ret = f"size: {size} bits | "
     for idx in range((size + 31) // 32):
         item = array.GetChildAtIndex(idx + 1, lldb.eNoDynamicValues, True)
         buffer = item.GetData().uint8s
@@ -96,13 +96,13 @@ def print_span(valobj, internal_dict):
 
     array = valobj.GetChildMemberWithName("m_ptr")
     size = valobj.GetChildMemberWithName("m_len").GetValueAsSigned()
-    ret = "size = {}".format(size)
+    ret = f"size = {size}"
     for idx in range(size):
         if idx == 0:
             item = array.Dereference()
         else:
             item = array.GetChildAtIndex(idx, lldb.eNoDynamicValues, True)
-        ret += "\n[{}] = {}".format(idx, item.summary)
+        ret += f"\n[{idx}] = {item.summary}"
     return ret
 
 
@@ -133,7 +133,7 @@ def print_strong_type(valobj, internal_dict):
         elif val == 2:
             data = "peer_error"
         else:
-            data = "<unknown> ({})".format(val)
+            data = f"<unknown> ({val})"
     elif "prio_index_tag_t" in name:
         name = "prio_index"
     elif "port_mapping_tag" in name:
@@ -156,9 +156,7 @@ def print_strong_type(valobj, internal_dict):
         elif val == 6:
             data = "piece_full_reverse";
         else:
-            data = "<unknown> ({})".format(val)
-    elif "piece_extent_tag" in name:
-        name = "piece_extent"
+            data = f"<unknown> ({val})"
     elif "picker_options_tag" in name:
         name = "picker_options"
         val = valobj.GetChildMemberWithName("m_val").GetValueAsUnsigned()
@@ -181,4 +179,4 @@ def print_strong_type(valobj, internal_dict):
     else:
         name = ""
 
-    return "({}) {}".format(name, data)
+    return f"({name}) {data}"

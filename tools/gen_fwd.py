@@ -92,18 +92,18 @@ def print_classes(out, classes, keyword):
         if skip > 0:
             skip -= 1
             continue
-        if classes[i][1] in namespaces \
-                and len(classes) > i + 1 \
-                and classes[i + 1][1] == ('%s_END' % classes[i][1]):
+        if (
+            classes[i][1] in namespaces
+            and len(classes) > i + 1
+            and classes[i + 1][1] == f'{classes[i][1]}_END'
+        ):
             skip = 1
         else:
             classes2.append(classes[i])
 
     classes = classes2
 
-    idx = -1
-    for line in classes:
-        idx += 1
+    for idx, line in enumerate(classes, start=-1):
         this_file = line[0]
         decl = line[1].split(' ')
 
@@ -112,14 +112,14 @@ def print_classes(out, classes, keyword):
             out.write('\n// ' + this_file + '\n')
         current_file = this_file
         if len(decl) > 2 and decl[0] in ['struct', 'class']:
-            decl = decl[0] + ' ' + decl[2]
+            decl = f'{decl[0]} {decl[2]}'
             if not decl.endswith(';'):
                 decl += ';'
             content = decl + '\n'
         else:
             content = line[1] + '\n'
 
-        if 'kademlia' in this_file:
+        if 'kademlia' in current_file:
             out.write('namespace dht {\n')
             out.write(content)
             out.write('}\n')

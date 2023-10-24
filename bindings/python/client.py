@@ -24,9 +24,7 @@ class WindowsConsole:
 
     def sleep_and_input(self, seconds):
         time.sleep(seconds)
-        if msvcrt.kbhit():
-            return msvcrt.getch()
-        return None
+        return msvcrt.getch() if msvcrt.kbhit() else None
 
 
 class UnixConsole:
@@ -55,9 +53,7 @@ class UnixConsole:
     def sleep_and_input(self, seconds):
         read, __, __ = select.select(
             [self.fd.fileno()], [], [], seconds)
-        if len(read) > 0:
-            return self.fd.read(1)
-        return None
+        return self.fd.read(1) if len(read) > 0 else None
 
 
 if os.name == 'nt':
@@ -76,10 +72,7 @@ def add_suffix(val):
     prefix = ['B', 'kB', 'MB', 'GB', 'TB']
     for i in range(len(prefix)):
         if abs(val) < 1000:
-            if i == 0:
-                return '%5.3g%s' % (val, prefix[i])
-            else:
-                return '%4.3g%s' % (val, prefix[i])
+            return '%5.3g%s' % (val, prefix[i]) if i == 0 else '%4.3g%s' % (val, prefix[i])
         val /= 1000
 
     return '%6.3gPB' % val
@@ -98,10 +91,10 @@ def print_peer_info(console, peers):
 
     for p in peers:
 
-        out += '%s/s ' % add_suffix(p.down_speed)
-        out += '(%s) ' % add_suffix(p.total_download)
-        out += '%s/s ' % add_suffix(p.up_speed)
-        out += '(%s) ' % add_suffix(p.total_upload)
+        out += f'{add_suffix(p.down_speed)}/s '
+        out += f'({add_suffix(p.total_download)}) '
+        out += f'{add_suffix(p.up_speed)}/s '
+        out += f'({add_suffix(p.total_upload)}) '
         out += '%2d ' % p.download_queue_length
         out += '%2d ' % p.upload_queue_length
 
@@ -160,11 +153,11 @@ def add_torrent(ses, filename, options):
         atp = lt.parse_magnet_uri(filename)
     else:
         ti = lt.torrent_info(filename)
-        resume_file = os.path.join(options.save_path, ti.name() + '.fastresume')
+        resume_file = os.path.join(options.save_path, f'{ti.name()}.fastresume')
         try:
             atp = lt.read_resume_data(open(resume_file, 'rb').read())
         except Exception as e:
-            print('failed to open resume file "%s": %s' % (resume_file, e))
+            print(f'failed to open resume file "{resume_file}": {e}')
         atp.ti = ti
 
     atp.save_path = options.save_path
@@ -230,10 +223,11 @@ def main():
         options.max_download_rate = -1
 
     settings = {
-        'user_agent': 'python_client/' + lt.__version__,
-        'listen_interfaces': '%s:%d' % (options.listen_interface, options.port),
-        'download_rate_limit': int(options.max_download_rate),
-        'upload_rate_limit': int(options.max_upload_rate),
+        'user_agent': f'python_client/{lt.__version__}',
+        'listen_interfaces': '%s:%d'
+        % (options.listen_interface, options.port),
+        'download_rate_limit': options.max_download_rate,
+        'upload_rate_limit': options.max_upload_rate,
         'alert_mask': lt.alert.category_t.all_categories,
         'outgoing_interfaces': options.outgoing_interface,
     }
@@ -252,11 +246,7 @@ def main():
     for f in args:
         add_torrent(ses, f, options)
 
-    if os.name == 'nt':
-        console = WindowsConsole()
-    else:
-        console = UnixConsole()
-
+    console = WindowsConsole() if os.name == 'nt' else UnixConsole()
     alive = True
     while alive:
         console.clear()
@@ -270,7 +260,7 @@ def main():
                 state_str = ['queued', 'checking', 'downloading metadata',
                              'downloading', 'finished', 'seeding',
                              '', 'checking fastresume']
-                out += state_str[t.state] + ' '
+                out += f'{state_str[t.state]} '
 
                 out += '%5.4f%% ' % (t.progress * 100)
                 out += progress_bar(t.progress, 49)
@@ -281,10 +271,8 @@ def main():
                     (t.num_peers, t.num_seeds, t.distributed_copies)
                 out += '\n'
 
-            out += 'download: %s/s (%s) ' \
-                % (add_suffix(t.download_rate), add_suffix(t.total_download))
-            out += 'upload: %s/s (%s) ' \
-                % (add_suffix(t.upload_rate), add_suffix(t.total_upload))
+            out += f'download: {add_suffix(t.download_rate)}/s ({add_suffix(t.total_download)}) '
+            out += f'upload: {add_suffix(t.upload_rate)}/s ({add_suffix(t.total_upload)}) '
 
             if t.state != lt.torrent_status.seeding:
                 out += 'info-hash: %s\n' % t.info_hashes
@@ -303,7 +291,7 @@ def main():
                     ti = t.torrent_file
                     for idx, p in enumerate(fp):
                         out += progress_bar(p / float(ti.files().file_size(idx)), 20)
-                        out += ' ' + ti.files().file_path(idx) + '\n'
+                        out += f' {ti.files().file_path(idx)}' + '\n'
                     write_line(console, out)
                 except Exception:
                     pass
@@ -359,7 +347,7 @@ def main():
             continue
         h.save_resume_data()
 
-    while len(torrents) > 0:
+    while torrents:
         alerts = ses.pop_alerts()
         for a in alerts:
             if isinstance(a, lt.save_resume_data_alert):
@@ -367,7 +355,12 @@ def main():
                 data = lt.write_resume_data_buf(a.params)
                 h = a.handle
                 if h in torrents:
-                    open(os.path.join(options.save_path, torrents[h].name + '.fastresume'), 'wb').write(data)
+                    open(
+                        os.path.join(
+                            options.save_path, f'{torrents[h].name}.fastresume'
+                        ),
+                        'wb',
+                    ).write(data)
                     del torrents[h]
 
             if isinstance(a, lt.save_resume_data_failed_alert):

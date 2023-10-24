@@ -76,9 +76,7 @@ def read_to_end_of_chunks(file_like):
                     yield line
                     if line in (b"\r\n", b"", b"\n"):
                         return
-            # Chunk size + crlf
-            chunk = file_like.read(size + 2)
-            yield chunk
+            yield file_like.read(size + 2)
 
     # Interpret any empty read as a closed connection, and stop
     for chunk in inner():
@@ -126,10 +124,10 @@ def read_all(file_like, buffer_size):
         bytes objects.
     """
     while True:
-        buf = file_like.read(buffer_size)
-        if not buf:
+        if buf := file_like.read(buffer_size):
+            yield buf
+        else:
             return
-        yield buf
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -163,9 +161,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if len(split) != 2:
             return False
         scheme, credentials = split
-        if scheme.lower() != "basic":
-            return False
-        return credentials == self.basic_auth
+        return False if scheme.lower() != "basic" else credentials == self.basic_auth
 
     def do_auth(self):
         """Fail the request if unauthorized.
@@ -322,9 +318,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             skip_accept_encoding=True)
 
         connection_tokens = []
-        filter_headers = set(
-            ("proxy-authorization", "connection", "keep-alive"))
-        pass_headers = set(("transfer-encoding", "te", "trailer"))
+        filter_headers = {"proxy-authorization", "connection", "keep-alive"}
+        pass_headers = {"transfer-encoding", "te", "trailer"}
         if "Connection" in self.headers:
             request_connection_tokens = [
                 token.strip() for token in self.headers["Connection"].split(",")
@@ -386,9 +381,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response_only(response.code, response.reason)
 
         connection_tokens = []
-        filter_headers = set(
-            ("proxy-authorization", "connection", "keep-alive"))
-        pass_headers = set(("transfer-encoding", "te", "trailer"))
+        filter_headers = {"proxy-authorization", "connection", "keep-alive"}
+        pass_headers = {"transfer-encoding", "te", "trailer"}
         if response.getheader("Connection"):
             response_connection_tokens = [
                 token.strip()
