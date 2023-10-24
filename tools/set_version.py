@@ -12,13 +12,10 @@ v = (int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))
 
 
 def format_fingerprint(version: Tuple[int, int, int, int]) -> str:
-    ret = ""
-    for i in version:
-        if i < 10:
-            ret += chr(ord("0") + i)
-        else:
-            ret += chr(ord("A") + i - 10)
-    return ret
+    return "".join(
+        chr(ord("0") + i) if i < 10 else chr(ord("A") + i - 10)
+        for i in version
+    )
 
 
 def fv(v: Tuple[int, int, int, int]) -> str:

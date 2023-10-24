@@ -39,13 +39,14 @@ def encode_dict(x, r):
     r.append('e')
 
 
-encode_func = {}
-encode_func[IntType] = encode_int
-encode_func[LongType] = encode_int
-encode_func[StringType] = encode_string
-encode_func[ListType] = encode_list
-encode_func[TupleType] = encode_list
-encode_func[DictType] = encode_dict
+encode_func = {
+    IntType: encode_int,
+    LongType: encode_int,
+    StringType: encode_string,
+    ListType: encode_list,
+    TupleType: encode_list,
+    DictType: encode_dict,
+}
 
 
 def bencode(x):
@@ -59,10 +60,7 @@ def send_dht_message(msg):
 
 
 def random_key():
-    ret = ''
-    for i in range(0, 20):
-        ret += chr(random.randint(0, 255))
-    return ret
+    return ''.join(chr(random.randint(0, 255)) for _ in range(0, 20))
 
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

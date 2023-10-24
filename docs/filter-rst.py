@@ -8,12 +8,10 @@ import sys
 def indent(line):
     if line == '':
         return None
-    end = 0
-    for c in line:
-        end += 1
-        if " \t" not in c:
-            return line[:end]
-    return line
+    return next(
+        (line[:end] for end, c in enumerate(line, start=1) if " \t" not in c),
+        line,
+    )
 
 
 start_block = False

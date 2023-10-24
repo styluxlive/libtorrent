@@ -46,23 +46,19 @@ allow_v4 = False
 
 
 def send(dest, msg):
-    if msg == CLOSE:
-        try:
-            dest.shutdown(socket.SHUT_WR)
-        except Exception:
-            pass
-        dest.close()
-        return 0
-    else:
+    if msg != CLOSE:
         return dest.sendall(msg)
+    try:
+        dest.shutdown(socket.SHUT_WR)
+    except Exception:
+        pass
+    dest.close()
+    return 0
 
 
 def recv(source, n):
     data = source.recv(n)
-    if data == b'':
-        return CLOSE
-    else:
-        return data
+    return CLOSE if data == b'' else data
 
 
 def forward(source, dest, name):
@@ -70,7 +66,7 @@ def forward(source, dest, name):
         data = recv(source, 4000)
         if data == CLOSE:
             send(dest, CLOSE)
-            debug('%s hung up' % name)
+            debug(f'{name} hung up')
             return
 #        debug('Forwarding (%d) %r' % (len(data), data))
         send(dest, data)
@@ -113,7 +109,7 @@ class SocksHandler(StreamRequestHandler):
 
         if allow_v4 and version == b'\x04':
             cmd = self.read(1)
-            if cmd != CONNECT and cmd != UDP_ASSOCIATE:
+            if cmd not in [CONNECT, UDP_ASSOCIATE]:
                 error('Only supports connect and udp-associate method not (%r) closing' % cmd)
                 self.close_request()
                 return
@@ -186,7 +182,7 @@ class SocksHandler(StreamRequestHandler):
         if version != b'\x05':
             error('Wrong version number (%r) closing...' % version)
             self.close_request()
-        elif cmd != CONNECT and cmd != UDP_ASSOCIATE:
+        elif cmd not in [CONNECT, UDP_ASSOCIATE]:
             error('Only supports connect and udp-associate method not (%r) closing' % cmd)
             self.close_request()
         elif zero != b'\x00':
@@ -217,7 +213,7 @@ class SocksHandler(StreamRequestHandler):
         try:
             out_address = socket.getaddrinfo(dest_address, dest_port)[0][4]
         except Exception as e:
-            error('%s' % e)
+            error(f'{e}')
             traceback.print_exc(file=sys.stdout)
             return
 
@@ -230,7 +226,7 @@ class SocksHandler(StreamRequestHandler):
         try:
             outbound_sock.connect(out_address)
         except Exception as e:
-            error('%s' % e)
+            error(f'{e}')
             traceback.print_exc(file=sys.stdout)
             return
 
@@ -243,7 +239,7 @@ class SocksHandler(StreamRequestHandler):
         try:
             forward(self.request, outbound_sock, 'client')
         except Exception as e:
-            error('%s' % e)
+            error(f'{e}')
             traceback.print_exc(file=sys.stdout)
 
     def send_reply_v4(self, xxx_todo_changeme):
@@ -261,7 +257,7 @@ class SocksHandler(StreamRequestHandler):
 
     def send_reply6(self, xxx_todo_changeme2):
         (bind_addr, bind_port, unused1, unused2) = xxx_todo_changeme2
-        bind_tuple = tuple([int(x, 16) for x in bind_addr.split(':')])
+        bind_tuple = tuple(int(x, 16) for x in bind_addr.split(':'))
         full_address = bind_tuple + (bind_port,)
         debug('Setting up forwarding port %r' % (full_address,))
         msg = pack('>cccc8HH', VERSION, SUCCESS, b'\x00', IPV6, *full_address)
@@ -286,8 +282,8 @@ class SocksHandler(StreamRequestHandler):
 
 if __name__ == '__main__':
 
-    debug('starting socks.py %s' % " ".join(sys.argv))
-    debug('python version: %s' % sys.version_info.__str__())
+    debug(f'starting socks.py {" ".join(sys.argv)}')
+    debug(f'python version: {sys.version_info.__str__()}')
     listen_port = 8002
     i = 1
     while i < len(sys.argv):
@@ -304,7 +300,7 @@ if __name__ == '__main__':
             allow_v4 = True
         else:
             if sys.argv[i] != '--help':
-                debug('unknown option "%s"' % sys.argv[i])
+                debug(f'unknown option "{sys.argv[i]}"')
             print('usage: socks.py [--username <user> --password <password>] [--port <listen-port>]')
             sys.stdout.flush()
             sys.exit(1)

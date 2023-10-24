@@ -17,32 +17,28 @@ def gen_stats_gnuplot(name, y, lines):
         line = stat.readline()
 
     names = line.strip().split(':')
-    counter = 1
-    for i in names:
+    for counter, i in enumerate(names, start=1):
         print('%d: %s' % (counter, i))
-        counter += 1
-
-    out = open('%s.gnuplot' % name, 'w+')
-    out.write('''
+    with open(f'{name}.gnuplot', 'w+') as out:
+        out.write('''
 set term png size 1200,700 small
 set output "%s.png"
 set title "%s"
 set ylabel "%s"
 set xlabel "time (minutes)"
 plot ''' % (name, name.strip('_'), y))
-    first = True
-    for i in lines:
-        if not first:
-            out.write(', \\\n')
-        first = False
-        out.write('"%s" using 1:%d title "%s" with lines' % (sys.argv[1], names.index(i) + 1, i))
-    out.write('\n')
+        first = True
+        for i in lines:
+            if not first:
+                out.write(', \\\n')
+            first = False
+            out.write('"%s" using 1:%d title "%s" with lines' % (sys.argv[1], names.index(i) + 1, i))
+        out.write('\n')
 
-    out.write('''set terminal postscript
+        out.write('''set terminal postscript
 set output "%s.ps"
 replot
 ''' % (name))
-    out.close()
     gnuplot_scripts += [name]
 
 
@@ -61,4 +57,4 @@ gen_stats_gnuplot('dht_rate', 'bytes per second', ['bytes in per sec', 'bytes ou
 gen_stats_gnuplot('dht_errors', 'messages per minute', ['error replies sent', 'error queries recvd'])
 
 for i in gnuplot_scripts:
-    os.system('gnuplot %s.gnuplot' % i)
+    os.system(f'gnuplot {i}.gnuplot')

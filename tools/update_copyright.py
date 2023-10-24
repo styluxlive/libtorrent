@@ -12,31 +12,29 @@ def update_file(name):
 
     new_header = copyright.get_authors(name)
     subst = ''
-    f = open(name)
+    with open(name) as f:
+        substitution_state = 0
+        added = False
+        found = False
+        for line in f:
+            if line.strip() == '/*':
+                substitution_state += 1
+            elif substitution_state == 1:
+                if line.strip().lower().startswith('copyright'):
+                    # remove the existing copyright
+                    found = True
+                    existing_author = line.split(',')[-1]
+                    if existing_author in new_header or existing_author.strip() == 'Not Committed Yet':
+                        continue
+                    print(f'preserving: {line}')
+                elif not added and found:
+                    subst += new_header
+                    added = True
+            elif line.strip() == '*/':
+                substitution_state += 1
 
-    substitution_state = 0
-    added = False
-    found = False
-    for line in f:
-        if line.strip() == '/*':
-            substitution_state += 1
-        elif substitution_state == 1:
-            if line.strip().lower().startswith('copyright'):
-                # remove the existing copyright
-                found = True
-                existing_author = line.split(',')[-1]
-                if existing_author in new_header or existing_author.strip() == 'Not Committed Yet':
-                    continue
-                print('preserving: %s' % line)
-            elif not added and found:
-                subst += new_header
-                added = True
-        elif line.strip() == '*/':
-            substitution_state += 1
+            subst += line
 
-        subst += line
-
-    f.close()
     open(name, 'w+').write(subst)
 
 

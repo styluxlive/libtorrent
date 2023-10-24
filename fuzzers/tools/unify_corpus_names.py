@@ -20,5 +20,5 @@ for name in os.listdir(root):
         continue
 
     new_name = hashlib.sha1(open(f, 'rb').read()).hexdigest()
-    print('%s -> %s' % (f, new_name))
+    print(f'{f} -> {new_name}')
     os.rename(f, os.path.join(root, new_name))

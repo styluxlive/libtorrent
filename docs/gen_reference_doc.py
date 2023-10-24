@@ -77,7 +77,7 @@ with open('../src/settings_pack.cpp') as f:
             continue
 
         name = line.split('(')[1].split(',')[0]
-        symbols['settings_pack::' + name] = 'reference-Settings.html#' + name
+        symbols[f'settings_pack::{name}'] = f'reference-Settings.html#{name}'
 
 static_links = \
     {
@@ -173,19 +173,12 @@ def categorize_symbol(name, filename):
     if f in category_mapping:
         return category_mapping[f]
 
-    if filename.startswith('libtorrent/kademlia/'):
-        return 'DHT'
-
-    return 'Core'
+    return 'DHT' if filename.startswith('libtorrent/kademlia/') else 'Core'
 
 
 def suppress_warning(filename, name):
     f = os.path.split(filename)[1]
-    if f != 'alert_types.hpp':
-        return False
-
-    # if name.endswith('_alert') or name == 'message()':
-    return True
+    return f == 'alert_types.hpp'
 
     # return False
 
@@ -199,11 +192,7 @@ def first_item(itr):
 def is_visible(desc):
     if desc.strip().startswith('hidden'):
         return False
-    if internal:
-        return True
-    if desc.strip().startswith('internal'):
-        return False
-    return True
+    return True if internal else not desc.strip().startswith('internal')
 
 
 def highlight_signature(s):
@@ -213,7 +202,7 @@ def highlight_signature(s):
         return s
 
     # make the name of the function bold
-    name2[-1] = '**' + name2[-1] + '** '
+    name2[-1] = f'**{name2[-1]}** '
 
     # if there is a return value, make sure we preserve pointer types
     if len(name2) > 1:
@@ -249,7 +238,7 @@ def highlight_name(s):
     if len(name2[-1]) == 0:
         return s
 
-    name2[-1] = '**' + name2[-1] + '** '
+    name2[-1] = f'**{name2[-1]}** '
     name[0] = ' '.join(name2)
     return splitter.join(name)
 
@@ -270,9 +259,7 @@ def html_sanitize(s):
 
 def looks_like_namespace(line):
     line = line.strip()
-    if line.startswith('namespace'):
-        return True
-    return False
+    return bool(line.startswith('namespace'))
 
 
 def looks_like_blank(line):
@@ -303,11 +290,7 @@ def looks_like_variable(line):
         return False
     if line.startswith('using'):
         return False
-    if ' = ' in line:
-        return True
-    if line.endswith(';'):
-        return True
-    return False
+    return True if ' = ' in line else bool(line.endswith(';'))
 
 
 def looks_like_constant(line):
@@ -332,11 +315,7 @@ def looks_like_forward_decl(line):
         return False
     if line.startswith('friend '):
         return True
-    if line.startswith('struct '):
-        return True
-    if line.startswith('class '):
-        return True
-    return False
+    return True if line.startswith('struct ') else bool(line.startswith('class '))
 
 
 def looks_like_function(line):
@@ -349,9 +328,7 @@ def looks_like_function(line):
         return False
     if line.startswith(','):
         return False
-    if line.startswith(':'):
-        return False
-    return '(' in line
+    return False if line.startswith(':') else '(' in line
 
 
 def parse_function(lno, lines, filename):
@@ -381,7 +358,7 @@ def parse_function(lno, lines, filename):
             sig_line = '\n   ' + sig_line
         signature += sig_line
         if verbose:
-            print('fun     %s' % line)
+            print(f'fun     {line}')
 
         if start_paren > 0 and start_paren == end_paren:
             if signature[-1] != ';':
@@ -396,18 +373,24 @@ def parse_function(lno, lines, filename):
 
                     if start_paren > 0 and start_paren == end_paren:
                         for k in range(i, len(signature)):
-                            if signature[k] == ':' or signature[k] == '{':
-                                signature = signature[0:k].strip()
+                            if signature[k] in [':', '{']:
+                                signature = signature[:k].strip()
                                 break
                         break
 
                 lno = consume_block(lno - 1, lines)
                 signature += ';'
-            ret = [{'file': filename[11:], 'signatures': set([signature]), 'names': set(
-                [signature.split('(')[0].split(' ')[-1].strip() + '()'])}, lno]
-            if first_item(ret[0]['names']) == '()':
-                return [None, lno]
-            return ret
+            ret = [
+                {
+                    'file': filename[11:],
+                    'signatures': {signature},
+                    'names': {
+                        signature.split('(')[0].split(' ')[-1].strip() + '()'
+                    },
+                },
+                lno,
+            ]
+            return [None, lno] if first_item(ret[0]['names']) == '()' else ret
     if len(signature) > 0:
         print('\x1b[31mFAILED TO PARSE FUNCTION\x1b[0m %s\nline: %d\nfile: %s' % (signature, lno, filename))
     return [None, lno]
@@ -416,22 +399,23 @@ def parse_function(lno, lines, filename):
 def add_desc(line):
     # plain output prints just descriptions and filters out c++ code.
     # it's used to run spell checker over
-    if plain_output:
-        for s in line.split('\n'):
-            # if the first character is a space, strip it
-            if len(s) > 0 and s[0] == ' ':
-                s = s[1:]
-            global in_code
-            if in_code is not None and not s.startswith(in_code) and len(s) > 1:
-                in_code = None
+    if not plain_output:
+        return
+    for s in line.split('\n'):
+        # if the first character is a space, strip it
+        if len(s) > 0 and s[0] == ' ':
+            s = s[1:]
+        global in_code
+        if in_code is not None and not s.startswith(in_code) and len(s) > 1:
+            in_code = None
 
-            if s.strip().startswith('.. code::'):
-                in_code = s.split('.. code::')[0] + '\t'
+        if s.strip().startswith('.. code::'):
+            in_code = s.split('.. code::')[0] + '\t'
 
-            # strip out C++ code from the plain text output since it's meant for
-            # running spell checking over
-            if not s.strip().startswith('.. ') and in_code is None:
-                plain_file.write(s + '\n')
+        # strip out C++ code from the plain text output since it's meant for
+        # running spell checking over
+        if not s.strip().startswith('.. ') and in_code is None:
+            plain_file.write(s + '\n')
 
 
 def parse_class(lno, lines, filename):

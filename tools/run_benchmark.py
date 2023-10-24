@@ -14,27 +14,26 @@ from vmstat import print_output_to_file
 
 import platform
 
-exe = ""
-
-if platform.system() == "Windows":
-    exe = ".exe"
+exe = ".exe" if platform.system() == "Windows" else ""
 
 def reset_download(save_path: str):
     rm_file_or_dir('.ses_state')
-    rm_file_or_dir(save_path + '/.resume')
-    rm_file_or_dir(save_path + '/cpu_benchmark')
+    rm_file_or_dir(f'{save_path}/.resume')
+    rm_file_or_dir(f'{save_path}/cpu_benchmark')
 
 def main():
     args = parse_args()
 
-    ret = os.system('cd ../examples && b2 profile %s stage_client_test'
-                    % args.toolset)
+    ret = os.system(
+        f'cd ../examples && b2 profile {args.toolset} stage_client_test'
+    )
     if ret != 0:
         print('ERROR: build failed: %d' % ret)
         sys.exit(1)
 
-    ret = os.system('cd ../examples && b2 release %s stage_connection_tester'
-                    % args.toolset)
+    ret = os.system(
+        f'cd ../examples && b2 release {args.toolset} stage_connection_tester'
+    )
     if ret != 0:
         print('ERROR: build failed: %d' % ret)
         sys.exit(1)
@@ -56,7 +55,7 @@ def main():
 
 
 def run_test(name, test_cmd, client_arg, num_peers):
-    output_dir = 'logs_%s' % name
+    output_dir = f'logs_{name}'
 
     rm_file_or_dir(output_dir)
     try:
@@ -73,35 +72,39 @@ def run_test(name, test_cmd, client_arg, num_peers):
     input("Press Enter to continue...")
 
     start = time.monotonic()
-    client_cmd = (f'../examples/client_test{exe} -k --listen_interfaces=127.0.0.1:{port} cpu_benchmark.torrent ' +
-        f'--enable_dht=0 --enable_lsd=0 --enable_upnp=0 --enable_natpmp=0 ' +
-        f' -O --allow_multiple_connections_per_ip=1 --connections_limit={num_peers*2} -T {num_peers*2} ' +
-        f'-f {output_dir}/events.log --alert_mask=error,status,connect,performance_warning,storage,peer').split(' ') + client_arg
+    client_cmd = (
+        (
+            (
+                f'../examples/client_test{exe} -k --listen_interfaces=127.0.0.1:{port} cpu_benchmark.torrent --enable_dht=0 --enable_lsd=0 --enable_upnp=0 --enable_natpmp=0 '
+                + f' -O --allow_multiple_connections_per_ip=1 --connections_limit={num_peers * 2} -T {num_peers * 2} '
+            )
+            + f'-f {output_dir}/events.log --alert_mask=error,status,connect,performance_warning,storage,peer'
+        )
+    ).split(' ') + client_arg
 
     test_cmd = f'../examples/connection_tester{exe} {test_cmd} -c {num_peers} -d 127.0.0.1 -p {port} -t cpu_benchmark.torrent'
 
-    client_out = open('%s/client.out' % output_dir, 'w+')
-    test_out = open('%s/test.out' % output_dir, 'w+')
-    print(f"client_cmd: {' '.join(client_cmd)}")
-    c = subprocess.Popen(client_cmd, stdout=client_out, stderr=client_out, stdin=subprocess.PIPE)
-    time.sleep(2)
-    print(f'test_cmd: "{test_cmd}"')
-    t = subprocess.Popen(test_cmd.split(' '), stdout=test_out, stderr=test_out)
+    with open(f'{output_dir}/client.out', 'w+') as client_out:
+        test_out = open(f'{output_dir}/test.out', 'w+')
+        print(f"client_cmd: {' '.join(client_cmd)}")
+        c = subprocess.Popen(client_cmd, stdout=client_out, stderr=client_out, stdin=subprocess.PIPE)
+        time.sleep(2)
+        print(f'test_cmd: "{test_cmd}"')
+        t = subprocess.Popen(test_cmd.split(' '), stdout=test_out, stderr=test_out)
 
-    out = {}
-    while c.returncode is None:
-        capture_sample(c.pid, start, out)
-        time.sleep(0.1)
-        c.poll()
-    end = time.monotonic()
+        out = {}
+        while c.returncode is None:
+            capture_sample(c.pid, start, out)
+            time.sleep(0.1)
+            c.poll()
+        end = time.monotonic()
 
-    stats_filename = f"{output_dir}/memory_stats.log"
-    keys = print_output_to_file(out, stats_filename)
-    plot_output(stats_filename, keys)
+        stats_filename = f"{output_dir}/memory_stats.log"
+        keys = print_output_to_file(out, stats_filename)
+        plot_output(stats_filename, keys)
 
-    t.wait()
+        t.wait()
 
-    client_out.close()
     test_out.close()
 
     print(f'runtime {end-start:0.2f} seconds')
@@ -109,14 +112,16 @@ def run_test(name, test_cmd, client_arg, num_peers):
     os.system(f'gprof ../examples/client_test{exe} >%s/gprof.out' % output_dir)
     print('generating profile graph...')
     try:
-        os.system('gprof2dot --strip <%s/gprof.out | dot -Tpng -o %s/cpu_profile.png' % (output_dir, output_dir))
+        os.system(
+            f'gprof2dot --strip <{output_dir}/gprof.out | dot -Tpng -o {output_dir}/cpu_profile.png'
+        )
     except Exception:
         print('please install gprof2dot and dot:\nsudo pip install gprof2dot\nsudo apt install graphviz')
 
-    os.system('python3 parse_session_stats.py %s/events.log' % output_dir)
+    os.system(f'python3 parse_session_stats.py {output_dir}/events.log')
 
     try:
-        shutil.move('session_stats_report', '%s/session_stats_report' % output_dir)
+        shutil.move('session_stats_report', f'{output_dir}/session_stats_report')
     except Exception:
         pass
 

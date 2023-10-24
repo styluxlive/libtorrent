@@ -33,9 +33,7 @@ import setuptools.command.build_ext as build_ext_lib
 
 
 def b2_bool(value: bool) -> str:
-    if value:
-        return "on"
-    return "off"
+    return "on" if value else "off"
 
 
 def b2_version() -> Tuple[int, ...]:
@@ -51,10 +49,7 @@ def b2_version() -> Tuple[int, ...]:
     result = tuple(int(part) for part in re.split(r"\.", m.group(1)))
     # Boost 1.71 changed from YYYY.MM to version 4.0. Return an "epoch" as the first
     # part of the tuple to distinguish these version patterns.
-    if result[0] > 1999:
-        return (0, *result)
-    else:
-        return (1, *result)
+    return (0, *result) if result[0] > 1999 else (1, *result)
 
 
 # Frustratingly, the "bdist_*" unconditionally (re-)run "build" without
@@ -286,8 +281,7 @@ class LibtorrentBuildExt(build_ext_lib.build_ext):
         i = 0
         while i < len(self._b2_args_split):
             arg = self._b2_args_split[i]
-            m = re.match(r"(-[dfjlmopst])(.*)", arg)
-            if m:
+            if m := re.match(r"(-[dfjlmopst])(.*)", arg):
                 name = m.group(1)
                 # An arg that takes a value but wasn't concatenated. Treat the
                 # next option as the value
@@ -337,11 +331,7 @@ class LibtorrentBuildExt(build_ext_lib.build_ext):
                 )
 
     def _should_add_arg(self, arg: str) -> bool:
-        m = re.match(r"(-\w).*", arg)
-        if m:
-            name = m.group(1)
-        else:
-            name = arg.split("=", 1)[0]
+        name = m.group(1) if (m := re.match(r"(-\w).*", arg)) else arg.split("=", 1)[0]
         return name not in self._b2_args_configured
 
     def _maybe_add_arg(self, arg: str) -> bool:

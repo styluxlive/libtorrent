@@ -14,11 +14,10 @@ chunked_encoding = False
 keepalive = True
 
 try:
-    fin = open('test_file', 'rb')
-    f = gzip.open('test_file.gz', 'wb')
-    f.writelines(fin)
-    f.close()
-    fin.close()
+    with open('test_file', 'rb') as fin:
+        f = gzip.open('test_file.gz', 'wb')
+        f.writelines(fin)
+        f.close()
 except Exception:
     pass
 
@@ -44,7 +43,9 @@ class http_handler(BaseHTTPRequestHandler):
 
     def inner_do_GET(self):
 
-        print('INCOMING-REQUEST [from: {}]: {}'.format(self.request.getsockname(), self.requestline))
+        print(
+            f'INCOMING-REQUEST [from: {self.request.getsockname()}]: {self.requestline}'
+        )
         print(self.headers)
         sys.stdout.flush()
 
@@ -63,7 +64,7 @@ class http_handler(BaseHTTPRequestHandler):
             passed = False
             if 'Authorization' in self.headers:
                 auth = self.headers['Authorization']
-                passed = auth == 'Basic %s' % base64.b64encode(b'testuser:testpass').decode()
+                passed = auth == f"Basic {base64.b64encode(b'testuser:testpass').decode()}"
 
             if not passed:
                 self.send_response(401)
@@ -92,10 +93,10 @@ class http_handler(BaseHTTPRequestHandler):
         elif self.path.startswith('/announce'):
             self.send_response(200)
             response = b'd8:intervali1800e8:completei1e10:incompletei1e' + \
-                b'12:min intervali' + min_interval.encode() + b'e' + \
-                b'5:peers12:AAAABBCCCCDD' + \
-                b'6:peers618:EEEEEEEEEEEEEEEEFF' + \
-                b'e'
+                    b'12:min intervali' + min_interval.encode() + b'e' + \
+                    b'5:peers12:AAAABBCCCCDD' + \
+                    b'6:peers618:EEEEEEEEEEEEEEEEFF' + \
+                    b'e'
             self.send_header("Content-Length", "%d" % len(response))
             self.send_header("Connection", "close")
             self.end_headers()
@@ -114,13 +115,11 @@ class http_handler(BaseHTTPRequestHandler):
             filename = ''
             try:
                 filename = os.path.normpath(self.path[1:self.path.find('seed?') + 4])
-                print('filename = %s' % filename)
+                print(f'filename = {filename}')
                 sys.stdout.flush()
-                f = open(filename, 'rb')
-                f.seek(piece * 32 * 1024 + int(ranges[0]))
-                data = f.read(int(ranges[1]) - int(ranges[0]) + 1)
-                f.close()
-
+                with open(filename, 'rb') as f:
+                    f.seek(piece * 32 * 1024 + int(ranges[0]))
+                    data = f.read(int(ranges[1]) - int(ranges[0]) + 1)
                 self.send_response(200)
                 print('sending %d bytes' % len(data))
                 sys.stdout.flush()
@@ -159,8 +158,10 @@ class http_handler(BaseHTTPRequestHandler):
                         ei = int(e)
                         if ei < size:
                             start_range = size - ei
-                    self.send_header('Content-Range', 'bytes ' + str(start_range)
-                                  + '-' + str(end_range - 1) + '/' + str(size))
+                    self.send_header(
+                        'Content-Range',
+                        f'bytes {start_range}-{str(end_range - 1)}/{size}',
+                    )
                 else:
                     self.send_response(200)
                 self.send_header('Accept-Ranges', 'bytes')
@@ -215,7 +216,7 @@ if __name__ == '__main__':
     use_ssl = sys.argv[3] != '0'
     keepalive = sys.argv[4] != '0'
     min_interval = sys.argv[5]
-    print('python version: %s' % sys.version_info.__str__())
+    print(f'python version: {sys.version_info.__str__()}')
 
     http_handler.protocol_version = 'HTTP/1.1'
     httpd = http_server_with_timeout(('127.0.0.1', port), http_handler)

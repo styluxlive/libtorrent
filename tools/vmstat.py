@@ -170,14 +170,14 @@ if platform.system() == "Linux":
             m = metrics[key]
             if key not in output:
                 if m.cumulative:
-                    output[key + "-raw"] = [val]
-                    val = val / time_delta
+                    output[f"{key}-raw"] = [val]
+                    val /= time_delta
                 output[key] = [val]
             else:
                 if m.cumulative:
                     raw_val = val
-                    val = (val - output[key + "-raw"][-1]) / time_delta
-                    output[key + "-raw"].append(raw_val)
+                    val = (val - output[f"{key}-raw"][-1]) / time_delta
+                    output[f"{key}-raw"].append(raw_val)
                 output[key].append(val)
 
         add_counter("minor_faults", float(stats[9]))
@@ -244,14 +244,14 @@ else:
             m = metrics[key]
             if key not in output:
                 if m.cumulative:
-                    output[key + "-raw"] = [val]
+                    output[f"{key}-raw"] = [val]
                     val = val / time_delta
                 output[key] = [val]
             else:
                 if m.cumulative:
                     raw_val = val
-                    val = (val - output[key + "-raw"][-1]) / time_delta
-                    output[key + "-raw"].append(raw_val)
+                    val = (val - output[f"{key}-raw"][-1]) / time_delta
+                    output[f"{key}-raw"].append(raw_val)
 
                 output[key].append(val)
 
@@ -269,25 +269,24 @@ else:
             m = metrics[key]
             if key not in output:
                 if m.cumulative:
-                    output[key + "-raw"] = [val]
+                    output[f"{key}-raw"] = [val]
                     val = val / time_delta
                 output[key] = [val]
             else:
                 if m.cumulative:
                     raw_val = val
-                    val = (val - output[key + "-raw"][-1]) / time_delta
-                    output[key + "-raw"].append(raw_val)
+                    val = (val - output[f"{key}-raw"][-1]) / time_delta
+                    output[f"{key}-raw"].append(raw_val)
 
                 output[key].append(val)
 
 
 def print_output_to_file(out: Dict[str, List[int]], filename: str) -> List[str]:
-    if out == {}:
+    if not out:
         return []
 
     with open(filename, "w+") as stats_output:
-        non_zero_keys: Set[str] = set()
-        non_zero_keys.add("time")
+        non_zero_keys: Set[str] = {"time"}
         keys = out.keys()
         for key in keys:
             stats_output.write(f"{key} ")
@@ -338,7 +337,7 @@ set y2label "{plot.y2label}"
             idx = 0
             for p in keys:
                 idx += 1
-                if p == "time" or p == "":
+                if p in ["time", ""]:
                     continue
 
                 if p not in plot.lines:
@@ -360,7 +359,7 @@ set y2label "{plot.y2label}"
                     + f'title "{title}" axis {m.axis} with steps, \\\n'
                 )
             if len(plot_string) > 5:
-                plot_string = plot_string[0:-4] + "\n\n"
+                plot_string = plot_string[:-4] + "\n\n"
                 f.write(plot_string)
 
     subprocess.check_output(["gnuplot", os.path.split(gnuplot_file)[1]], cwd=output_dir)

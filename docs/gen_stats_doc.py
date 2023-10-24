@@ -3,46 +3,43 @@ from __future__ import print_function
 
 counter_types = {}
 
-f = open('../include/libtorrent/performance_counters.hpp')
+with open('../include/libtorrent/performance_counters.hpp') as f:
+    counter_type = ''
 
-counter_type = ''
+    for line in f:
 
-for line in f:
+        # ignore anything after //
+        if '//' in line:
+            line = line.split('//')[0]
 
-    # ignore anything after //
-    if '//' in line:
-        line = line.split('//')[0]
+        line = line.strip()
 
-    line = line.strip()
+        if line.startswith('#'):
+            continue
+        if line == '':
+            continue
 
-    if line.startswith('#'):
-        continue
-    if line == '':
-        continue
+        if 'enum stats_counter_t' in line:
+            counter_type = 'counter'
+            continue
 
-    if 'enum stats_counter_t' in line:
-        counter_type = 'counter'
-        continue
+        if 'enum stats_gauge_t' in line:
+            counter_type = 'gauge'
+            continue
 
-    if 'enum stats_gauge_t' in line:
-        counter_type = 'gauge'
-        continue
+        if '{' in line or '}' in line or 'struct' in line or 'namespace' in line:
+            continue
+        if counter_type == '':
+            continue
+        if not line.endswith(','):
+            continue
 
-    if '{' in line or '}' in line or 'struct' in line or 'namespace' in line:
-        continue
-    if counter_type == '':
-        continue
-    if not line.endswith(','):
-        continue
+        # strip off trailing comma
+        line = line[:-1]
+        if '=' in line:
+            line = line[:line.index('=')].strip()
 
-    # strip off trailing comma
-    line = line[:-1]
-    if '=' in line:
-        line = line[:line.index('=')].strip()
-
-    counter_types[line] = counter_type
-
-f.close()
+        counter_types[line] = counter_type
 
 f = open('../src/session_stats.cpp')
 
@@ -50,7 +47,7 @@ out = open('stats_counters.rst', 'w+')
 
 
 def print_field(str, width):
-    return '%s%s' % (str, ' ' * (width - len(str)))
+    return f"{str}{' ' * (width - len(str))}"
 
 
 def render_section(names, description, types):
@@ -59,7 +56,7 @@ def render_section(names, description, types):
 
     if description == '':
         for n in names:
-            print('WARNING: no description for "%s"' % n)
+            print(f'WARNING: no description for "{n}"')
 
     # add link targets for the rest of the manual to reference
     for n in names:
@@ -75,10 +72,16 @@ def render_section(names, description, types):
 
     # build a table for the settings, their type and default value
     print(separator, file=out)
-    print('| %s | %s |' % (print_field('name', max_name_len), print_field('type', max_type_len)), file=out)
+    print(
+        f"| {print_field('name', max_name_len)} | {print_field('type', max_type_len)} |",
+        file=out,
+    )
     print(separator.replace('-', '='), file=out)
     for i in range(len(names)):
-        print('| %s | %s |' % (print_field(names[i], max_name_len), print_field(types[i], max_type_len)), file=out)
+        print(
+            f'| {print_field(names[i], max_name_len)} | {print_field(types[i], max_type_len)} |',
+            file=out,
+        )
         print(separator, file=out)
     print(file=out)
     print(description, file=out)
@@ -123,7 +126,7 @@ for line in f:
         # args: category, name, type
 
         args[1] = args[1].strip()
-        names.append(args[0].strip() + '.' + args[1].strip())
+        names.append(f'{args[0].strip()}.{args[1].strip()}')
         types.append(counter_types[args[1]])
 
 if len(names) > 0:
